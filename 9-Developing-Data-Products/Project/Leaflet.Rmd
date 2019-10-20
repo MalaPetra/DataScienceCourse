@@ -1,0 +1,43 @@
+---
+title: "Leaflet map"
+author: "Petra Mala"
+date: "20/10/2019"
+output: html_document
+---
+
+# Introduction
+This is an Coursera project defined as follow= “Create a web page using R Markdown that features a map created with Leaflet.
+
+Host your webpage on either GitHub Pages, RPubs, or NeoCities.
+
+Your webpage must contain the date that you created the document, and it must contain a map created with Leaflet. We would love to see you show off your creativity!"
+
+# Data plotted
+The data used come from https://developers.google.com/public-data/docs/canonical/countries_csv
+
+
+
+```{r message=FALSE, warning=FALSE}
+# load libraries
+library(readr)
+library(leaflet)
+library(dplyr)
+
+# load data
+world <- read_table2("~/Desktop/world.csv", 
+    col_types = cols(latitude = col_number(), 
+        longitude = col_number()))
+View(world)
+
+```
+
+```{r}
+my_map <- world %>%
+        leaflet() %>%
+        addTiles() %>%
+
+        addCircles(radius = 10000, popup = world$name)
+
+my_map
+
+```
