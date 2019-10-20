@@ -1,0 +1,64 @@
+---
+title: "Plotly Assignment"
+author: "Petra Mala"
+date: "20/10/2019"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.table.format = "html") 
+```
+
+# Simple plotly example - iris dataset
+
+
+
+Settings
+----
+We are going to plot 'Petal Length' vs 'Petal Width', by 'Species'
+```{r message=FALSE, warning=FALSE}
+library(plotly)
+library(datasets)
+library(dplyr)
+data(iris)
+```
+
+Formatting
+----
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+f <- list(
+  family = "Courier New, monospace",
+  size = 11,   color = "#6e6e6e" )
+x <- list(
+  title = "Petal Length",   titlefont = f )
+y <- list(
+  title = "Petal Width",   titlefont = f )
+```
+
+
+Plotting
+----
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+plot_ly(iris, x = ~Petal.Length, y = ~Petal.Width,  type="scatter", mode = "markers" , color = ~Species , 
+        colors = "Set1",  
+        marker=list( size=20 , opacity=0.5) )%>%
+        layout(xaxis=x, yaxis=y) 
+```
+
+Interpretation
+----
+
+The iris dataset in R provides measurements (in cm) of sepal length and width, and petal length and width of the following 3 species of iris: Iris setosa, versicolor, and virginica. This plot shows relaitonship between petal length and petal width. Different species are shown in different colors.
+
+  
+
+References
+----
+
+
+- "Presentations with ioslides - Overview" 
+<http://rmarkdown.rstudio.com/ioslides_presentation_format.html>
+
+- "Iris Dataset" 
+<https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/iris.html>
