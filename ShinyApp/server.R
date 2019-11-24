@@ -1,0 +1,18 @@
+shinyServer(
+  
+  function(input, output, sessionInfo) {
+    
+    output$myPlot <- renderPlot({
+      
+      distType <- input$Distribution
+      size <- input$sampleSize
+      
+      if(distType == "Normal") {
+        randomVec <- rnorm(size, mean = as.numeric(input$mean))
+      } else {
+        randomVec <- rnorm(size, mean = as.numeric(input$mean), sd=as.numeric(input$sd))
+      }
+      hist(randomVec, col="blue")
+    })
+  }
+)
