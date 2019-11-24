@@ -1,0 +1,81 @@
+---
+title: "Shiny Application and Reproducible Pitch"
+author: "Petra Mala"
+date: "24/11/2019"
+output: slidy_presentation
+---
+
+## Project
+This peer assessed assignment has two parts. First we will create a Shiny Application and deploy it on Rstudio server.
+Secondly, we will use Slidify or Rstudio Presenter to prepare a reproducible pitch presentation about your application.
+
+## Objectives
+
+- Developing simple application using R Studio
+
+UI:
+
+- Define your distribution type
+- Select sample size
+- If Distribution Type is Normal then allow user to select mean and    standard deviation
+- If Distribution Type is Exponential then allow user to select        lambda
+
+
+
+## UI Configuration
+
+ui.R
+
+```{r eval=F, echo=T}
+shinyServer(
+  pageWithSidebar(
+    headerPanel("My First Shiny App"),
+    sidebarPanel(
+      selectInput("Distribution", "Please Select Distribution Type",
+                  choices=c("Normal", "Exponential")),
+      sliderInput("sampleSize", "Please Select Sample Size: ",
+                  min=100, max=5000, value= 1000, step=100 ),
+      conditionalPanel(
+        condition = "input.Distribution == 'Normal'",
+        textInput("mean","Please Select the mean",10),
+        textInput("sd","Please Select Standard Deviation", 3)
+      ),
+      conditionalPanel(
+        condition = "input.Distribution == 'Exponential'",
+        textInput("lambda", "Please Select Exponential Lambda:",1)
+      )
+    ),
+    mainPanel(plotOutput("myPlot"))
+  )
+)
+```
+
+
+## Server Configuration
+
+server.R
+
+```{r eval=F, echo=T}
+shinyServer(
+  
+  function(input, output, sessionInfo) {
+    
+    output$myPlot <- renderPlot({
+      
+      distType <- input$Distribution
+      size <- input$sampleSize
+      
+      if(distType == "Normal") {
+        randomVec <- rnorm(size, mean = as.numeric(input$mean))
+      } else {
+        randomVec <- rnorm(size, mean = as.numeric(input$mean), sd=as.numeric(input$sd))
+      }
+      hist(randomVec, col="blue")
+    })
+  }
+)
+```
+
+## ShinyApp Code
+
+Git repository at: https://github.com/MalaPetra/DataScienceCourse/tree/master/ShinyApp
