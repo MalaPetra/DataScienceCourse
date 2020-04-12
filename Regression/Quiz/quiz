@@ -1,0 +1,337 @@
+# Quiz 2
+
+#Question 1
+
+##Consider the following data with x as the predictor and y as as the outcome. x <- c(0.61, 0.93, 0.83, 0.35, 0.54, 0.16, 0.91, 0.62, 0.62) y <- c(0.67, 0.84, 0.6, 0.18, 0.85, 0.47, 1.1, 0.65, 0.36)
+##Give a P-value for the two sided hypothesis test of whether β1 from a linear regression model is 0 or not.
+##  The easier way is using the the coefficient table from the summary of lm model.
+
+x <- c(0.61, 0.93, 0.83, 0.35, 0.54, 0.16, 0.91, 0.62, 0.62)
+y <- c(0.67, 0.84, 0.6, 0.18, 0.85, 0.47, 1.1, 0.65, 0.36)
+
+fit <- lm(y ~ x)
+coefTable <- coef(summary(fit))
+(pval <- coefTable[2, 4])
+
+### [1] 0.05296439
+
+## We can also sompute the P-value using the definitions and formulas as follows. The P-value will be the same as above.
+
+n <- length(y)
+beta1 <- cor(y, x) * sd(y) / sd(x)
+beta0 <- mean(y) - beta1 * mean(x)
+e <- y - beta0 - beta1 * x
+sigma <- sqrt(sum(e ^ 2) / (n - 2)) 
+ssx <- sum((x - mean(x)) ^ 2)
+seBeta1 <- sigma / sqrt(ssx)
+tBeta1 <- beta1 / seBeta1
+(pBeta1 <- 2 * pt(abs(tBeta1), df = n - 2, lower.tail = FALSE))
+
+### [1] 0.05296439
+
+#Question 2
+
+##Consider the previous problem, give the estimate of the residual standard deviation.
+##Solution:
+## Again, we can use the summary of the lm model to extract the the residual standard deviation, or we can compute it using the formula ∑ni=1e2in−2‾‾‾‾‾‾√, which is done in Question 1.
+
+summary(fit)$sigma
+
+### [1] 0.2229981
+
+(sigma <- sqrt(sum(e ^ 2) / (n - 2)))
+### [1] 0.2229981
+
+
+#Question 3
+
+##In the mtcars data set, fit a linear regression model of weight (predictor) on mpg (outcome). Get a 95% confidence interval for the expected mpg at the average weight. What is the lower endpoint?
+##Solution:
+##We can use the predict() function or the formula E[ŷ ]±t.975,n−2σ̂ 1n+(x0−X¯)2∑(Xi−X¯)2‾‾‾‾‾‾‾‾‾‾‾‾√ at x0=X¯ to get the confidence interval.
+
+data(mtcars)
+y <- mtcars$mpg
+x <- mtcars$wt
+fit_car <- lm(y ~ x)
+predict(fit_car, newdata = data.frame(x = mean(x)), interval = ("confidence"))
+
+##        fit      lwr      upr
+### 1 20.09062 18.99098 21.19027
+
+yhat <- fit_car$coef[1] + fit_car$coef[2] * mean(x)
+yhat + c(-1, 1) * qt(.975, df = fit_car$df) * summary(fit_car)$sigma / sqrt(length(y))
+
+### [1] 18.99098 21.19027
+
+#Question 4
+
+##Refer to the previous question. Read the help file for mtcars. What is the weight coefficient interpreted as?
+##Solution:
+##Since variable wt has unit (lb/1000), the coefficient is interpreted as the estimated expected change in mpg per 1,000 lb increase in weight.
+
+#Question 5
+
+##Consider again the mtcars data set and a linear regression model with mpg as predicted by weight (1,000 lbs). A new car is coming weighing 3000 pounds. Construct a 95% prediction interval for its mpg. What is the upper endpoint?
+##  Solution:
+##  We can simply use predict() function to get the prediction interval, or use the formula ŷ ±t.975,n−2σ̂ 1+1n+(x0−X¯)2∑(Xi−X¯)2‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾√ at x0=3.
+
+predict(fit_car, newdata = data.frame(x = 3), interval = ("prediction"))
+
+###        fit      lwr      upr
+### 1 21.25171 14.92987 27.57355
+
+yhat <- fit_car$coef[1] + fit_car$coef[2] * 3
+yhat + c(-1, 1) * qt(.975, df = fit_car$df) * summary(fit_car)$sigma * sqrt(1 + (1/length(y)) + ((3 - mean(x)) ^ 2 / sum((x - mean(x)) ^ 2)))
+
+### [1] 14.92987 27.57355
+
+
+#Question 6
+
+##Consider again the mtcars data set and a linear regression model with mpg as predicted by weight (in 1,000 lbs). A “short” ton is defined as 2,000 lbs. Construct a 95% confidence interval for the expected change in mpg per 1 short ton increase in weight. Give the lower endpoint.
+##Solution:
+##  We could change unit of the predictor from 1000 lbs to 2000 lbs.
+
+fit_car2 <- lm(y ~ I(x/2))
+sumCoef2 <- coef(summary(fit_car2))
+(sumCoef2[2,1] + c(-1, 1) * qt(.975, df = fit_car2$df) * sumCoef2[2, 2])
+
+### [1] -12.97262  -8.40527
+
+#Question 7
+
+##If my X from a linear regression is measured in centimeters and I convert it to meters what would happen to the slope coefficient?
+##  Solution: It would get multiplied by 100. Simply consider the following example.
+
+x <- c(0.61, 0.93, 0.83, 0.35, 0.54, 0.16, 0.91, 0.62, 0.62)
+y <- c(0.67, 0.84, 0.6, 0.18, 0.85, 0.47, 1.1, 0.65, 0.36)
+fit <- lm(y ~ x)
+fit$coef[2]
+
+
+### 0.7224211
+
+x_meter <- x / 100
+fit_meter <- lm(y ~ x_meter)
+fit_meter$coef[2]
+
+###  x_meter 
+### 72.24211
+
+#Question 8
+
+##I have an outcome, Y, and a predictor, X and fit a linear regression model with Y=β0+β1X+ϵ to obtain β̂ 0 and β̂ 1. What would be the consequence to the subsequent slope and intercept if I were to refit the model with a new regressor, X+c for some constant, c?
+##  Solution:
+##  The new intercept would be β̂ 0−cβ̂ 1. Consider the following example.
+
+x <- c(0.61, 0.93, 0.83, 0.35, 0.54, 0.16, 0.91, 0.62, 0.62)
+y <- c(0.67, 0.84, 0.6, 0.18, 0.85, 0.47, 1.1, 0.65, 0.36)
+fit <- lm(y ~ x)
+fit$coef
+
+### (Intercept)           x 
+###   0.1884572   0.7224211
+
+x_c <- x + 10
+fit_c <- lm(y ~ x_c)
+fit_c$coef
+
+### (Intercept)         x_c 
+###  -7.0357536   0.7224211
+
+fit$coef[1] - 10 * fit$coef[2] 
+
+### (Intercept) 
+###   -7.035754
+
+#Question 9
+
+##Refer back to the mtcars data set with mpg as an outcome and weight (wt) as the predictor. About what is the ratio of the the sum of the squared errors, ∑ni=1(Yi−Ŷ i)2 when comparing a model with just an intercept (denominator) to the model with the intercept and slope (numerator)?
+##  Solution:
+##Yi^=Y¯ when the fitted model has an intercept only.
+
+data(mtcars)
+y <- mtcars$mpg
+x <- mtcars$wt
+fit_car <- lm(y ~ x)
+sum(resid(fit_car)^2) / sum((y - mean(y)) ^ 2)
+
+### [1] 0.2471672
+
+#Question 10
+
+##Do the residuals always have to sum to 0 in linear regression?
+##  Solution:
+##  If an intercept is included, then they will sum to 0.
+
+data(mtcars)
+y <- mtcars$mpg
+x <- mtcars$wt
+fit_car <- lm(y ~ x)
+sum(resid(fit_car))
+
+### [1] -1.637579e-15
+
+fit_car_noic <- lm(y ~ x - 1)
+sum(resid(fit_car_noic))
+
+### [1] 98.11672
+fit_car_ic <- lm(y ~ rep(1, length(y)))
+sum(resid(fit_car_ic))
+
+### [1] -5.995204e-15
+
+# Quiz 3
+
+##Consider the mtcars data set. Fit a model with mpg as the outcome that includes number of cylinders as a factor variable and weight as confounder.
+##Give the adjusted estimate for the expected change in mpg comparing 8 cylinders to 4.
+##We will need to convert the cylinder column to factor
+
+data("mtcars")
+
+fit1 <- lm(mpg ~ factor(cyl) + wt, data = mtcars)
+coefficients(fit1)
+
+###  (Intercept) factor(cyl)6 factor(cyl)8           wt 
+###    33.990794    -4.255582    -6.070860    -3.205613
+###The adjusted estimate for expected change in mpg comparing 8 cylinders to 4 is -6.0708597
+
+# 2. Consider the mtcars data set.
+
+##Fit a model with mpg as the outcome that includes number of cylinders as a factor variable and weight as a possible confounding variable.
+##Compare the effect of 8 versus 4 cylinders on mpg for the adjusted and unadjusted by weight models.
+##Here, adjusted means including the weight variable as a term in the regression model and unadjusted means the model without weight included.
+##What can be said about the effect comparing 8 and 4 cylinders after looking at models with and without weight included?
+##  The adjusted estimate for expected change in mpg comparing 8 cylinders to 4 is -6.0708597. This is the answer from the first question.
+
+data("mtcars")
+fit2 <- lm(mpg ~ factor(cyl), data = mtcars)
+coefficients(fit2)
+
+###  (Intercept) factor(cyl)6 factor(cyl)8 
+###    26.663636    -6.920779   -11.563636
+### The adjusted estimate for expected change in mpg comparing 8 cylinders to 4 is -6.0708597. This is the answer from the first question. Summarizing the fit 33.990794, -4.2555824, -6.0708597, -3.2056133
+### The unadjusted estimate for expected change in mpg comparing 8 cylinders to 4 is -11.5636364. Summarizing the fit 26.6636364, -6.9207792, -11.5636364
+### From the above, we can say that adjusted model has less of an impacted on mpg than unadjusted.
+
+# 3. Consider the mtcars data set. Fit a model with mpg as the outcome that considers number of cylinders as a factor variable and weight as confounder. Now fit a second model with mpg as the outcome model that considers the interaction between number of cylinders (as a factor variable) and weight. Give the P-value for the likelihood ratio test comparing the two models and suggest a model using 0.05 as a type I error rate significance benchmark.
+
+data("mtcars")
+fit3 <- lm(mpg ~ factor(cyl)*wt, data = mtcars)
+coefficients(fit3)
+
+###     (Intercept)    factor(cyl)6    factor(cyl)8              wt 
+###       39.571196      -11.162351      -15.703167       -5.647025 
+### factor(cyl)6:wt factor(cyl)8:wt 
+###        2.866919        3.454587
+
+summary(fit1)
+ 
+
+### Call:
+### lm(formula = mpg ~ factor(cyl) + wt, data = mtcars)
+### 
+### Residuals:
+###     Min      1Q  Median      3Q     Max 
+### -4.5890 -1.2357 -0.5159  1.3845  5.7915 
+### 
+### Coefficients:
+###              Estimate Std. Error t value Pr(>|t|)    
+### (Intercept)   33.9908     1.8878  18.006  < 2e-16 ***
+### factor(cyl)6  -4.2556     1.3861  -3.070 0.004718 ** 
+### factor(cyl)8  -6.0709     1.6523  -3.674 0.000999 ***
+### wt            -3.2056     0.7539  -4.252 0.000213 ***
+### ---
+### Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+### 
+### Residual standard error: 2.557 on 28 degrees of freedom
+### Multiple R-squared:  0.8374, Adjusted R-squared:   0.82 
+### F-statistic: 48.08 on 3 and 28 DF,  p-value: 3.594e-11
+
+summary(fit3)
+
+### 
+### Call:
+### lm(formula = mpg ~ factor(cyl) * wt, data = mtcars)
+### 
+### Residuals:
+###     Min      1Q  Median      3Q     Max 
+### -4.1513 -1.3798 -0.6389  1.4938  5.2523 
+### 
+### Coefficients:
+### (Intercept)       39.571      3.194  12.389 2.06e-12 ***
+###                 Estimate Std. Error t value Pr(>|t|)    
+### factor(cyl)6     -11.162      9.355  -1.193 0.243584    
+### factor(cyl)8     -15.703      4.839  -3.245 0.003223 ** 
+### factor(cyl)6:wt    2.867      3.117   0.920 0.366199    
+### wt                -5.647      1.359  -4.154 0.000313 ***
+### factor(cyl)8:wt    3.455      1.627   2.123 0.043440 *  
+### ---
+### 
+### Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+### Residual standard error: 2.449 on 26 degrees of freedom
+### Multiple R-squared:  0.8616, Adjusted R-squared:  0.8349 
+
+anova(fit1, fit3)
+
+### F-statistic: 32.36 on 5 and 26 DF,  p-value: 2.258e-10
+### Analysis of Variance Table
+### 
+### Model 1: mpg ~ factor(cyl) + wt
+###   Res.Df    RSS Df Sum of Sq      F Pr(>F)
+### Model 2: mpg ~ factor(cyl) * wt
+### 1     28 183.06                           
+### 2     26 155.89  2     27.17 2.2658 0.1239
+###From the above anova test for the two models, we see that the P value of 0.1239 is higher than .05. So we will fail to reject.
+
+# 4. Consider the mtcars data set. Fit a model with mpg as the outcome that includes number of cylinders as a factor variable and weight inlcuded in the model as: lm(mpg ~ I(wt * 0.5) + factor(cyl), data = mtcars)
+
+## How is the wt coefficient interpretted?
+##  This is the estimated expected change in MPG per half ton increase in weight for a specific number of cylinders (4, 6, 8).
+
+# 5.Consider the following data set
+
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)
+
+###Give the hat diagonal for the most influential point
+###The most influential point in predictor x is 11.72. This value is furthest away from the rest of the x value group. we will identify the hat value of that influential point.
+
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)
+
+fit5 <- lm(y~x)
+influence(fit5)$hat
+
+###         1         2         3         4         5 
+### 0.2286650 0.2438146 0.2525027 0.2804443 0.9945734
+### The Hat value is .995
+
+# 6. Consider the following data set
+
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)
+
+###Give the slope dfbeta for the point with the highest hat value.
+###The slope dfbeta is the second column. We need to identify that value for highest hat value.
+
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)
+
+fit6 <- lm(y~x)
+influence.measures(fit5)
+
+### Influence measures of
+###   lm(formula = y ~ x) :
+### 
+### 1  1.0621 -3.78e-01    1.0679 0.341 2.93e-01 0.229   *
+###    dfb.1_     dfb.x     dffit cov.r   cook.d   hat inf
+### 2  0.0675 -2.86e-02    0.0675 2.934 3.39e-03 0.244    
+### 3 -0.0174  7.92e-03   -0.0174 3.007 2.26e-04 0.253   *
+### 4 -1.2496  6.73e-01   -1.2557 0.342 3.91e-01 0.280   *
+### 5  0.2043 -1.34e+02 -149.7204 0.107 2.70e+02 0.995   *
+###The slope dfbeta is -1.34e+02 = -134
+
+# 7. Consider a regression relationship between Y and X with and without adjustment for a third variable Z. Which of the following is true about comparing the regression coefficient between Y and X with and without adjustment for Z.
+
+###It is possible for the coefficient to reverse sign after adjustment. For example, it can be strongly significant and positive before adjustment and strongly significant and negative after adjustment.
