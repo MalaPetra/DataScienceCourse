@@ -1,0 +1,112 @@
+---
+title: "Analysis of income by college major"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dependencies
+
+First we load the dataset from the collegeIncome package. Next we load the broom package for tidier
+display of regression output and the dplyr package for working with data frames.
+
+```{r message=FALSE, warning=FALSE}
+library(collegeIncome)
+data(college)
+library(broom)
+library(dplyr)
+```
+
+# Exploratory data analysis
+
+Let’s take a look at the data to get acquainted with the contents.
+
+```{r}
+head(college)
+
+summary(college)
+```
+
+What are the different categories of college majors?
+
+```{r}
+table(college$major_category)
+```
+
+Only one major falls into the “Interdisciplinary” category. We certainly cannot estimate an effect for this
+category, so we will remove it.
+
+```{r}
+college <- college %>%
+filter(major_category != "Interdisciplinary")
+table(college$major_category)
+```
+
+Median income in a category is a useful measure because it indicates an income level that is typical in that
+category. Later we will used median income as our outcome measure in linear regression, but it is useful to
+look at plots of how the three different income measures (25th, 50th, and 75th percentile of income among
+those reporting income in the survey) vary across categories.
+
+```{r}
+par(mar = c(13,4.5,2,0.5))
+boxplot(p75th ~ major_category, data = college, main = "75th percentile", las = 2, cex.axis = 0.75)
+```
+
+25th percentile
+
+```{r}
+boxplot(p25th ~ major_category, data = college, main = "25th percentile", las = 2, cex.axis = 0.75)
+```
+
+50th percentile
+
+```{r}
+boxplot(median ~ major_category, data = college, main = "50th percentile", las = 2, cex.axis = 0.50)
+```
+
+There doesn’t seem to be considerable variation across categories for either of these three measures, so we
+will stick with using the median as our outcome measure.
+
+# Linear regression
+
+Because the income information is defined to pertain to full-time, year-round workers, we will look at other
+characteristics: namely, gender effects and effects related to type of job (jobs requiring a college degree and
+jobs that are low-wage service positions). We can fit this linear model and view inference results with the
+following commands:
+
+```{r}
+lmfit <- lm(median ~ major_category+perc_women+perc_college_jobs+perc_low_wage_jobs, data = college)
+summary(lmfit)
+```
+
+Holding constant gender distributions and skill category distributions, we don’t see much effect of major
+category (reference category is Agriculture & Natural Resources - how can we tell?). In particular, it is
+important to consider the multiple hypothesis testing issue here as we have many different major categories.
+Considering this, we really don’t see much of a category effect on income. Further the F-statistic results at
+the bottom do not suggest that the variables included have an impact on median income.
+
+We can check if regression assumptions are met with diagnostic plotting:
+
+```{r}
+resid <- residuals(lmfit)
+fitted <- fitted.values(lmfit)
+plot(density(resid), xlab = "Residuals", ylab = "Density", main = "Residual distribution")
+```
+
+```{r}
+plot(fitted, resid, xlab = "Predicted values", ylab = "Residuals")
+abline(h = 0, col = "red", lty = "dashed")
+```
+
+Normality assumptions don’t seem far off (approximately), and heteroskedasticity doesn’t seem to be an issue.
+Perhaps there is one outlier, but that is unlikely to have changed the overall results too much.
+Overall there doesn’t seem to be an effect of college major category on median income in this study.
+
+FYI: A slightly neater display of the inference results for the coefficients can be obtained with the tidy
+function in the broom package:
+
+```{r}
+tidy(lmfit)
+```
