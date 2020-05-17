@@ -1,0 +1,275 @@
+---
+title: "Course Project"
+output: html_document
+---
+
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+# Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+# What you should submit
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+# Load libraries
+
+```{r message=FALSE, warning=FALSE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(readr)
+library(randomForest)
+library(ggplot2)
+```
+
+# Read data
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+pml_testing <- read_csv("Downloads/pml-testing.csv") # will be used for validation
+pml_training <- read_csv("Downloads/pml-training.csv")
+```
+
+# Getting relevant data
+
+Datasets contain 160 variables.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+str(pml_testing)
+str(pml_training)
+```
+
+### Deleting irrelevant data
+
+Some data won't be needed like user_name or timestamp so I will delete them from both datasets.
+
+```{r}
+pml_testing <- pml_testing[, -c(1:7)]
+
+pml_training <- pml_training[, -c(1:7)]
+```
+
+### Removing null columns and data with low variance
+
+Some variables only have null values, I'll remove them.
+
+```{r}
+pml_training <- pml_training[, colSums(is.na(pml_training)) == 0] 
+pml_testing <- pml_testing[, colSums(is.na(pml_testing)) == 0] 
+```
+
+### Removing columns with near zero variance
+
+```{r}
+# function from caret library
+
+if (length(nearZeroVar(pml_training)) > 0) {
+  pml_training <- pml_training[, -nearZeroVar(pml_training)] 
+}
+
+if (length(nearZeroVar(pml_testing)) > 0) {
+  pml_training <- pml_testing[, -nearZeroVar(pml_testing)] 
+}
+# No variables removed
+```
+
+### Datset check after changes
+
+```{r}
+dim(pml_training)
+dim(pml_testing)
+```
+
+### Data type of each variable
+
+In order to use the data for prediction, I will need to ensure that the variables are numeric and transform character variable to a factor.
+
+```{r}
+sapply(pml_training, class)
+
+class(pml_training$classe)  
+pml_training$classe <- as.factor(pml_training$classe)
+```
+
+
+# Data Validation
+
+I'll be using my testing data as a validation sample where I'll predict the classes. Training set will be split into training and testing data and use cross validation withing the training dataset to improve the model.
+
+```{r}
+set.seed(200) # to ensure reproducibility
+
+training_sample <- createDataPartition(y=pml_training$classe, p=0.75, list=FALSE)
+training_data <- pml_training[training_sample, ]
+testing_data <- pml_training[-training_sample, ]
+```
+
+```{r}
+dim(training_data)
+dim(testing_data)
+```
+
+# Data Exploration
+
+I am going to predict a variable classe.
+
+There are 5 different types:
+
+- exactly according to the specification (Class A)
+- throwing the elbows to the front (Class B)
+- lifting the dumbbell only halfway (Class C)
+- lowering the dumbbell only halfway (Class D)
+- throwing the hips to the front (Class E)
+
+```{r}
+ggplot(subset(training_data), aes(x=classe)) + 
+    geom_bar() +
+    geom_line(stat="count") 
+```
+
+Level A classe is the most frequent with over 4000 cases compared to least frequent D with over 2000 cases.
+
+
+# Prediction Model
+
+I am going to use:
+
+- Decision Tree - rpart
+- Random Forest - rf
+- Gradient boosting trees - gbm
+
+### Random forest
+
+By default, the number of decision trees in the forest is 500 and the number of features used as potential candidates for each split is 3. The model will automatically attempt to classify each of the samples in the Out-Of-Bag dataset and display a confusion matrix with the results.
+
+#### Create a model
+```{r}
+random_forest <- randomForest(
+  classe ~ .,
+  data=training_data,
+  method="class"
+)
+
+random_forest
+```
+
+#### Predict
+
+```{r message=FALSE, warning=FALSE}
+rf_prediction <- predict(random_forest, testing_data, type = "class")
+```
+Now I am going to test results on my testing dataset (not validation dataset!)
+
+#### Test
+
+```{r}
+cm_rf <- confusionMatrix(rf_prediction, testing_data$classe)
+cm_rf
+```
+
+Accuracy for Random Forest alghorithm is 99.67% with 95% CI (0.9947 to 0.9981). The expected out-of-sample error is estimated at 0.43, or 0.43%.
+
+Article I found useful: https://towardsdatascience.com/random-forest-in-r-f66adf80ec9
+
+### Decision tree
+
+#### Create a model
+
+```{r}
+decision_tree <- rpart(classe ~ ., data=training_data, method="class")
+```
+
+#### Predict
+
+```{r}
+dt_predict <- predict(decision_tree, testing_data, type = "class")
+```
+
+#### Plot decision tree
+
+```{r}
+rpart.plot(decision_tree, main="Decision Tree", extra=100, under=TRUE, faclen=0)
+```
+
+#### Test
+
+```{r}
+cm_dt <- confusionMatrix(dt_predict, testing_data$classe)
+cm_dt
+```
+
+Accuracy for Decision Tree alghorithm is 75.43% with 95% CI (0.742 to 0.7663). The expected out-of-sample error is estimated at 0.2457, or 24.57%.
+
+### Generalized Boosting Model (GBM)
+
+#### Created a model
+
+```{r}
+fit_control <- trainControl(method = "repeatedcv", 
+                                     number = 5, repeats = 4, allowParallel = TRUE)
+gbm <- train(classe ~ ., data = training_data, 
+                          method = "gbm", trControl = fit_control, verbose = FALSE)
+
+# I could write the code for RF or DT in a similar way as here for GBM using caret package
+```
+
+#### Predict
+
+```{r}
+gbm_predict <- predict(gbm, testing_data)
+```
+
+#### Test
+
+```{r}
+cm_gbm <- confusionMatrix(gbm_predict, testing_data$classe)
+cm_gbm
+```
+
+#### Plotting the accuracy
+
+```{r}
+plot(gbm, ylim=c(0.7, 1))
+```
+# Result
+
+
+```{r}
+cat("The Random Forest Accuracy = ", round(cm_rf$overall['Accuracy']*100, 2), "%", sep="")
+```
+```{r}
+cat("The Decision Tree = ", round(cm_dt$overall['Accuracy']*100, 2), "%", sep="")
+```
+```{r}
+cat("The GBM Accuracy = ", round(cm_gbm$overall['Accuracy']*100, 2), "%", sep="")
+```
+
+The highest accuracy had random forest model.
+
+# Prediction of classes using validation dataset
+
+```{r}
+predict_validation <- predict(random_forest, pml_testing)
+validation_result <- data.frame(
+  problem_id=pml_testing$problem_id,
+  predicted=predict_validation
+)
+
+validation_result
+```
+
+# Outcome
+
+In order to predict classes on validation dataset, I picked a random forest model with highest accuracy. After submitting to coursera, the result came back with 100% accuracy.
