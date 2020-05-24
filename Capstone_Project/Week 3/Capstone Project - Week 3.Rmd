@@ -3,7 +3,7 @@ title: "Capstone Project - Week 3"
 output: html_notebook
 ---
 
-# Goal of Week 3
+# Prediction Model
 
 The goal of this exercise is to build and evaluate your first predictive model. You will use the n-gram and backoff models you built in previous tasks to build and evaluate your predictive model. The goal is to make the model efficient and accurate.
 
