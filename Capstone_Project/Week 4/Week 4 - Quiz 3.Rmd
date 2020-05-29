@@ -1,0 +1,306 @@
+---
+title: "Capstone Project Quiz 3"
+output: html_document
+---
+
+Data filepath
+
+```{r}
+library(tm)
+library(stringr)
+library(ngram)
+```
+
+```{r}
+co_twitter_en <- "/users/petramala/downloads/final/en_US//en_US.twitter.txt"
+co_news_en <- "/users/petramala/downloads/final/en_US//en_US.news.txt"
+co_blogs_en <- "/users/petramala/downloads/final/en_US/en_US.blogs.txt"
+```
+
+Prepare function for tidying data
+
+```{r}
+tidyText <- function(file, tidyfile) {
+  
+  # read in text
+  con <- file(file, open="r")
+  lines <- readLines(con, skipNul=TRUE)
+  close(con)
+
+  lines <- tolower(lines)
+  
+  # replace words that contain "@", "#", "http://", "https://" 
+  # with space (especially for Twitter text)
+  lines <- gsub("([^[:space:]]*)(@|#|http://|https://)([^[:space:]]*)", " ", lines)
+  
+  # split at all ".", ",", brackets and etc.
+  lines <- unlist(strsplit(lines, "[.,:;!?(){}<>]|[][]+"))
+
+  # replace all non-alphanumeric characters with a space at the beginning/end of a word.
+  lines <- gsub("^[^a-z0-9]+|[^a-z0-9]+$", " ", lines) # at the begining/end of a line
+  lines <- gsub("[^a-z0-9]+\\s", " ", lines) # before space
+  lines <- gsub("\\s[^a-z0-9]+", " ", lines) # after space
+  
+  # split a string at spaces then remove the words 
+  # that contain any non-alphabetic characters (excpet "-", "'")
+  # then paste them together (separate them with spaces)
+  lines <- unlist(lapply(lines, function(line){
+    words <- unlist(strsplit(line, "\\s+"))
+    words <- words[!grepl("[^a-z'-]", words, perl=TRUE)]
+    paste(words, collapse=" ")}))
+  
+  # remove axcess spaces
+  #lines <- gsub("\\s+", " ", lines) # remove mutiple spaces
+  lines <- str_trim(lines) # remove spaces at the beginning/end of the line
+
+  # drop blank lines
+  lines <- lines[nchar(lines)>0]
+  
+  saveRDS(lines, file = tidyfile) 
+}
+```
+
+Clean texts
+
+```{r}
+tidyText(co_twitter_en, "co_tidy_twitter_en.rds")
+
+tidyText(co_news_en, "co_tidy_news_en.rds")
+
+tidyText(co_blogs_en, "co_tidy_blogs_en.rds")
+```
+
+Merge texts
+
+```{r}
+
+df_news <- readRDS(file = "co_tidy_news_en") # 340061 lines
+
+df_blogs <- readRDS(file = "co_tidy_blogs_en") # 4532671 lines
+
+df_twitter <- readRDS(file = "co_tidy_twitter_en") # 5030042 lines
+
+lines <- c(df_news, df_blogs, df_twitter)
+#rm(df_news, df_blogs, df_twitter)
+```
+
+Get 3-gram
+
+```{r}
+# remove lines that contain less than 3 words, or ngram() would throw errors.
+lines <- lines[str_count(lines, "\\s+")>1] # reduced 9902774 lines to 7607099 lines
+
+trigram <- ngram(lines, n=3); 
+#rm(lines) # 7.619798 mins
+
+df <- get.phrasetable(trigram); 
+#rm(trigram) # 3.286831 mins
+
+saveRDS(df, "co_3gram_en.rds") # 211,607 KB
+```
+
+The 3-gram dictionary has a long tail.
+
+```{r}
+df <- readRDS("co_3gram_en.rds") # 22662982 objects
+```
+
+```{r}
+plot(df[1:5000,]$freq,
+     main='3-Grams Top 5000 Word Frequence',
+     ylab="Frequence",
+     xlab="Word")
+```
+
+```{r}
+rbind(head(df, 10), tail(df, 10))
+```
+
+Remove 3-grams with freqence = 1 (the long tail)
+
+```{r}
+df_notail <- df[df$freq>1,]
+saveRDS(df_notail, "co_3gram_notail_en.rds") # 32,995 KB
+```
+
+```{r}
+df_notail <- readRDS("co_3gram_notail_en.rds")
+dim(df_notail)
+```
+
+The reduced 3-gram dictionary contains 17.91% original 3-grams, covers 62.45% instances, sizes 15% of the full 3-gram dictionary.
+
+```{r}
+c(nrow(df_notail)/nrow(df),
+sum(df_notail$freq)/sum(df$freq),
+32995/211607)
+```
+
+### Quiz 3
+
+Question 1:
+For each of the sentence fragments below use your natural language processing algorithm to predict the next word in the sentence.
+
+When you breathe, I want to be the air for you. I'll be there for you, I'd live and I'd
+
+```{r}
+rbind(df[grep("^and i'd give", df[,1]),],
+      df[grep("^and i'd sleep", df[,1]),],
+      df[grep("^and i'd eat", df[,1]),],
+      df[grep("^and i'd die", df[,1]),])
+```
+
+```{r}
+rbind(df_notail[grep("^and i'd give", df_notail[,1]),],
+      df_notail[grep("^and i'd sleep", df_notail[,1]),],
+      df_notail[grep("^and i'd eat", df_notail[,1]),],
+      df_notail[grep("^and i'd die", df_notail[,1]),])
+```
+
+Question 2:
+Guy at my table's wife got up to go to the bathroom and I asked about dessert and he started telling me about his
+
+```{r}
+rbind(df[grep("^about his horticultural", df[,1]),],
+      df[grep("^about his spiritual", df[,1]),],
+      df[grep("^about his marital", df[,1]),],
+      df[grep("^about his financial", df[,1]),])
+```
+
+```{r}
+rbind(df_notail[grep("^about his horticultural", df_notail[,1]),],
+      df_notail[grep("^about his spiritual", df_notail[,1]),],
+      df_notail[grep("^about his marital", df_notail[,1]),],
+      df_notail[grep("^about his financial", df_notail[,1]),])
+```
+
+Question 3:
+I'd give anything to see arctic monkeys this
+
+```{r}
+head(df[grep("^monkeys this", df[,1]),], 10)
+```
+
+```{r}
+head(df[grep("^arctic monkeys", df[,1]),], 30)
+```
+
+```{r}
+rbind(head(df[grep("this weekend", df[,1]),], 1),
+      head(df[grep("this month", df[,1]),], 1),
+      head(df[grep("this decade", df[,1]),], 1),
+      head(df[grep("this morning", df[,1]),], 1))
+```
+
+```{r}
+rbind(head(df_notail[grep("this weekend", df_notail[,1]),], 1),
+      head(df_notail[grep("this month", df_notail[,1]),], 1),
+      head(df_notail[grep("this decade", df_notail[,1]),], 1),
+      head(df_notail[grep("this morning", df_notail[,1]),], 1))
+```
+
+Question 4:
+Talking to your mom has the same effect as a hug and helps reduce your
+
+```{r}
+head(df[grep("^reduce your", df[,1]),], 5)
+```
+
+```{r}
+rbind(head(df[grep("^reduce your hunger", df[,1]),], 1),
+      head(df[grep("^reduce your stress", df[,1]),], 1),
+      head(df[grep("^reduce your happiness", df[,1]),], 1),
+      head(df[grep("^reduce your sleepiness", df[,1]),], 1))
+```
+
+```{r}
+rbind(head(df_notail[grep("^reduce your hunger", df_notail[,1]),], 1),
+      head(df_notail[grep("^reduce your stress", df_notail[,1]),], 1),
+      head(df_notail[grep("^reduce your happiness", df_notail[,1]),], 1),
+      head(df_notail[grep("^reduce your sleepiness", df_notail[,1]),], 1))
+```
+Answer: stress
+
+Question 5:
+When you were in Holland you were like 1 inch away from me but you hadn't time to take a
+
+```{r}
+head(df[grep("^take a ", df[,1]),], 5)
+```
+
+```{r}
+head(df_notail[grep("^take a ", df_notail[,1]),], 5)
+```
+
+Question 6:
+I'd just like all of these questions answered, a presentation of evidence, and a jury to settle the
+
+```{r}
+head(df[grep("^settle the ", df[,1]),], 5)
+```
+
+```{r}
+head(df_notail[grep("^settle the ", df_notail[,1]),], 5)
+```
+
+
+Question 7:
+I can't deal with unsymetrical things. I can't even hold an uneven number of bags of groceries in each
+
+```{r}
+rbind(head(df[grep("^in each finger", df[,1]),], 1),
+      head(df[grep("^in each arm", df[,1]),], 1),
+      head(df[grep("^in each toe", df[,1]),], 1),
+      head(df[grep("^in each hand", df[,1]),], 1))
+```
+
+```{r}
+rbind(head(df_notail[grep("^in each finger", df_notail[,1]),], 1),
+      head(df_notail[grep("^in each arm", df_notail[,1]),], 1),
+      head(df_notail[grep("^in each toe", df_notail[,1]),], 1),
+      head(df_notail[grep("^in each hand", df_notail[,1]),], 1))
+```
+
+Answer: hand
+
+Quesiton 8:
+Every inch of you is perfect from the bottom to the
+
+```{r}
+rbind(head(df[grep("^to the side", df[,1]),], 1),
+      head(df[grep("^to the center", df[,1]),], 1),
+      head(df[grep("^to the top", df[,1]),], 1),
+      head(df[grep("^to the middle", df[,1]),], 1))
+```
+
+```{r}
+rbind(head(df_notail[grep("^to the side", df_notail[,1]),], 1),
+      head(df_notail[grep("^to the center", df_notail[,1]),], 1),
+      head(df_notail[grep("^to the top", df_notail[,1]),], 1),
+      head(df_notail[grep("^to the middle", df_notail[,1]),], 1))
+```
+Answer: top
+
+Question 9:
+I’m thankful my childhood was filled with imagination and bruises from playing
+
+```{r}
+head(df[grep("^from playing", df[,1]),], 30)
+```
+
+```{r}
+head(df_notail[grep("^from playing", df_notail[,1]),], 10)
+```
+Answer: outside
+
+Question 10:
+I like how the same people are in almost all of Adam Sandler's
+
+```{r}
+head(df[grep("^adam sandler's ", df[,1]),], 10)
+```
+
+```{r}
+df[grep("adam sandler's", df[,1]),]
+```
+Answer: movies
