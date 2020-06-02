@@ -1,0 +1,206 @@
+---
+title: "Final Project"
+output: html_document
+---
+
+```{r}
+library(tm)
+library(stringr)
+library(ngram)
+```
+### Load data
+
+```{r}
+co_twitter_en <- "/users/petramala/downloads/final/en_US//en_US.twitter.txt"
+co_news_en <- "/users/petramala/downloads/final/en_US//en_US.news.txt"
+co_blogs_en <- "/users/petramala/downloads/final/en_US/en_US.blogs.txt"
+```
+
+### Prepare function for tidying data
+
+```{r}
+tidyText <- function(file, tidyfile) {
+  
+  # read in text
+  con <- file(file, open="r")
+  lines <- readLines(con, skipNul=TRUE)
+  close(con)
+
+  lines <- tolower(lines)
+  
+  # replace words that contain "@", "#", "http://", "https://" 
+  # with space (especially for Twitter text)
+  lines <- gsub("([^[:space:]]*)(@|#|http://|https://)([^[:space:]]*)", " ", lines)
+  
+  # split at all ".", ",", brackets and etc.
+  lines <- unlist(strsplit(lines, "[.,:;!?(){}<>]|[][]+"))
+
+  # replace all non-alphanumeric characters with a space at the beginning/end of a word.
+  lines <- gsub("^[^a-z0-9]+|[^a-z0-9]+$", " ", lines) # at the begining/end of a line
+  lines <- gsub("[^a-z0-9]+\\s", " ", lines) # before space
+  lines <- gsub("\\s[^a-z0-9]+", " ", lines) # after space
+  
+  # split a string at spaces then remove the words 
+  # that contain any non-alphabetic characters (excpet "-", "'")
+  # then paste them together (separate them with spaces)
+  lines <- unlist(lapply(lines, function(line){
+    words <- unlist(strsplit(line, "\\s+"))
+    words <- words[!grepl("[^a-z'-]", words, perl=TRUE)]
+    paste(words, collapse=" ")}))
+  
+  # remove axcess spaces
+  #lines <- gsub("\\s+", " ", lines) # remove mutiple spaces
+  lines <- str_trim(lines) # remove spaces at the beginning/end of the line
+
+  # drop blank lines
+  lines <- lines[nchar(lines)>0]
+  
+  saveRDS(lines, file = tidyfile) 
+}
+```
+
+### Clean texts
+
+```{r}
+tidyText(co_twitter_en, "co_tidy_twitter_en.rds")
+
+tidyText(co_news_en, "co_tidy_news_en.rds")
+
+tidyText(co_blogs_en, "co_tidy_blogs_en.rds")
+```
+
+### Merge texts
+
+```{r}
+df_news <- readRDS(file = "co_tidy_news_en") # 340061 lines
+
+df_blogs <- readRDS(file = "co_tidy_blogs_en") # 4532671 lines
+
+df_twitter <- readRDS(file = "co_tidy_twitter_en") # 5030042 lines
+
+sampletext <- function(textbody, portion) {
+  taking <- sample(1:length(textbody), length(textbody)*portion)
+  Sampletext <- textbody[taking]
+  Sampletext
+}
+
+# sampling text files 
+set.seed(65364)
+portion <- 0.05
+df_twitter <- sampletext(df_twitter, portion)
+df_blogs <- sampletext(df_blogs, portion)
+df_news <- sampletext(df_news, portion)
+
+
+lines <- c(df_news, df_blogs, df_twitter)
+#rm(df_news, df_blogs, df_twitter)
+```
+
+### Bigram
+
+```{r}
+# remove lines that contain less than 3 words, or ngram() would throw errors.
+lines <- lines[str_count(lines, "\\s+")>0] 
+
+bigram <- ngram(lines, n=2); 
+#rm(lines) # 7.619798 mins
+
+df <- get.phrasetable(bigram); 
+#rm(trigram) # 3.286831 mins
+
+saveRDS(df, "bigram.rds") # 211,607 KB
+```
+
+### Trigram
+
+```{r}
+# remove lines that contain less than 3 words, or ngram() would throw errors.
+lines <- lines[str_count(lines, "\\s+")>1] # reduced 9902774 lines to 7607099 lines
+
+trigram <- ngram(lines, n=3); 
+#rm(lines) # 7.619798 mins
+
+df <- get.phrasetable(trigram); 
+#rm(trigram) # 3.286831 mins
+
+saveRDS(df, "trigram.rds") # 211,607 KB
+```
+
+### Quadram
+
+```{r}
+# remove lines that contain less than 3 words, or ngram() would throw errors.
+lines <- lines[str_count(lines, "\\s+")>2] # reduced 9902774 lines to 7607099 lines
+
+quadram <- ngram(lines, n=4); 
+#rm(lines) # 7.619798 mins
+
+df <- get.phrasetable(quadram); 
+#rm(trigram) # 3.286831 mins
+
+saveRDS(df, "quadram.rds") # 211,607 KB
+```
+
+### Transform rds files into the format for shinyApp
+
+
+```{r}
+bigram <- readRDS("bigram.rds")
+
+as.data.frame(bigram)
+
+bigram$ngrams <- as.character(bigram$ngrams)
+
+bigram_split <- strsplit(as.character(bigram$ngrams),split=" ")
+
+
+bigram <- transform(bigram,first = sapply(bigram_split,"[[",1),second = sapply(bigram_split,"[[",2))
+
+bigram <- data.frame(unigram = bigram$first,bigram = bigram$second,freq = bigram$freq,stringsAsFactors=FALSE)
+
+saveRDS(bigram,"bigram.rds")
+```
+
+```{r}
+trigram <- readRDS("trigram.rds")
+
+as.data.frame(trigram)
+
+trigram$ngrams <- as.character(trigram$ngrams)
+
+trigram_split <- strsplit(as.character(trigram$ngrams),split=" ")
+
+
+trigram <- transform(trigram,first = sapply(trigram_split,"[[",1),second = sapply(trigram_split,"[[",2),third = sapply(trigram_split,"[[",3))
+
+trigram <- data.frame(unigram = trigram$first,bigram = trigram$second, trigram = trigram$third, freq = trigram$freq,stringsAsFactors=FALSE)
+
+
+saveRDS(trigram,"trigram.rds")
+```
+
+
+```{r}
+quadram <- readRDS("quadram.rds")
+
+as.data.frame(quadram)
+
+quadram$ngrams <- as.character(quadram$ngrams)
+
+quadram_split <- strsplit(as.character(quadram$ngrams),split=" ")
+
+
+quadram <- transform(quadram,first = sapply(quadram_split,"[[",1),second = sapply(quadram_split,"[[",2),third = sapply(quadram_split,"[[",3), fourth = sapply(quadram_split,"[[",4))
+
+
+quadram <- data.frame(unigram = quadram$first,bigram = quadram$second, trigram = quadram$third, quadgram = quadram$fourth, freq = quadram$freq,stringsAsFactors=FALSE)
+
+
+saveRDS(quadram,"quadram.rds")
+```
+
+```{r}
+test <- readRDS("quadgram.Rdata")
+test1 <- readRDS("quadram.rds")
+```
+
