@@ -14,17 +14,17 @@ This Specialization covers the concepts and tools needed throughout the entire d
 
 ## Course Keywords
 
-Github
-Machine Learning
-R Programming
-Regression Analysis
-Data Science
-R Studio
-Data Analysis
-Debugging
-Data Manipulation
-Regular Expression (REGEX)
-Data Cleansing
-Cluster Analysis
+- Github
+- Machine Learning
+- R Programming
+- Regression Analysis
+- Data Science
+- R Studio
+- Data Analysis
+- Debugging
+- Data Manipulation
+- Regular Expression (REGEX)
+- Data Cleansing
+- Cluster Analysis
 
 
